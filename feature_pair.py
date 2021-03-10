@@ -1,12 +1,10 @@
 import magma as m
 
-def reg_next(n): return m.Register(type(n).undirected_t)()(n)
+def reg_next(n): return m.register(n)
 
-def reg_next_init(n, init): return m.Register(type(n).undirected_t, init = init, reset_type = m.Reset)()(n)
+def reg_next_init(n, init): return m.register(n, init = init, reset_type = m.Reset)
 
 def reg_init(t, init): return m.Register(t, init = init, reset_type = m.Reset)()
-
-def ext_to(b, length): return m.zext(b, length - len(b))
 
 class PairMem(m.Generator2):
   def __init__(self, size: int):
@@ -20,11 +18,8 @@ class PairMem(m.Generator2):
       WE = m.In(m.Enable)
     )
     mem = m.Memory(size, m.Bits[64], init = (0,) * size)()
-    mem.RADDR @= reg_next(io.RADDR)
-    io.RDATA @= mem.RDATA
-    mem.WADDR @= io.WADDR
-    mem.WDATA @= io.WDATA
-    mem.WE @= io.WE
+    raddr = reg_next(io.RADDR)
+    mem(RADDR=raddr, RDATA=io.RDATA, WADDR=io.WADDR, WDATA=io.WDATA, WE=io.WE)
 
 class FeaturePair(m.Generator2):
   def __init__ (self, wordWidth: int, metricWidth: int, idx: int):
@@ -66,7 +61,7 @@ class FeaturePair(m.Generator2):
         bram.WE @= io.doShift
       else:
         bram.RADDR @= io.inputFeatureTwo.concat(io.inputFeatureOne)
-        bram.WDATA @= (readData[:32] + ext_to(lastMetric, 32)).concat(readData[32:] + 1)
+        bram.WDATA @= (readData[:32] + m.zext_to(lastMetric, 32)).concat(readData[32:] + 1)
         bram.WADDR @= lastFeatureTwo.concat(lastFeatureOne)
         bram.WE @= lastInputValid
 

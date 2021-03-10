@@ -6,9 +6,7 @@ def reg(t): return m.Register(t)()
 
 def reg_init(t, init): return m.Register(t, init = init, reset_type = m.Reset)()
 
-def sr(b, s): return m.uint(0, s).concat(b)
-
-def ext_to(b, length): return m.zext(b, length - len(b))
+def sl(b, s): return m.uint(0, s).concat(b)
 
 def gen_shift(a):
   for i in range(len(a.I) - 1):
@@ -90,7 +88,7 @@ class StreamingWrapper(m.Generator2):
     io.inputMemAddrValid @= (state.O == TopState.inputLengthAddr) | \
       ((state.O == TopState.mainLoop) & (inputAddrLineCount.O != inputLength.O))
     io.inputMemBlockReady @= (state.O == TopState.loadInputLength) | (state.O == TopState.mainLoop)
-    io.outputMemAddr @= ext_to(sr(outputWordCounter.O, 3), 64) + outputStartAddr
+    io.outputMemAddr @= m.zext_to(sl(outputWordCounter.O, 3), 64) + outputStartAddr
     io.outputMemAddrValid @= (state.O == TopState.writeOutput) & (outputState.O == OutputState.sendingAddr)
     io.outputMemAddrLen @= 0
     io.outputMemAddrId @= 0
@@ -111,7 +109,7 @@ class StreamingWrapper(m.Generator2):
           inputLength.I @= io.inputMemBlock[:32]
           state.I @= TopState.mainLoop
       elif state.O == TopState.mainLoop:
-        io.inputMemAddr @= ext_to(sr(inputAddrLineCount.O, m.bitutils.clog2(bytesInLine)), 64) + \
+        io.inputMemAddr @= m.zext_to(sl(inputAddrLineCount.O, m.bitutils.clog2(bytesInLine)), 64) + \
           (inputStartAddr + bytesInLine) # final term is start offset of main data stream
         remainingAddrLines = inputLength.O - inputAddrLineCount.O
         io.inputMemAddrLen @= 63 if remainingAddrLines > 63 else (remainingAddrLines - 1)[:8]
