@@ -31,7 +31,7 @@ class FeaturePair(m.Generator2):
       shiftMode = m.In(m.Bit), # one cycle pause required between last inputValid and start of shiftMode
       doShift = m.In(m.Bit),
       neighborOutputIn = m.In(m.UInt[64]),
-      output = m.Out(m.UInt[64])
+      out = m.Out(m.UInt[64])
     ) + m.ClockIO(has_reset = True)
 
     ram_size = 1 << (2 * wordWidth)
@@ -49,7 +49,7 @@ class FeaturePair(m.Generator2):
       readData = bram.RDATA
 
     outputCounter = reg_init(m.UInt[2 * wordWidth], 0)
-    io.output @= bram.RDATA
+    io.out @= bram.RDATA
     @m.inline_combinational()
     def logic():
       if io.doShift:

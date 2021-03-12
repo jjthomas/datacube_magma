@@ -15,6 +15,9 @@ def gen_shift(a):
 class StreamingWrapper(m.Generator2):
   def __init__(self, inputStartAddr: int, outputStartAddr: int, busWidth: int,
                      wordWidth: int, numWordsPerGroup: int, metricWidth: int):
+    self.inputStartAddr = inputStartAddr
+    self.outputStartAddr = outputStartAddr
+    self.busWidth = busWidth
     self.io = io = m.IO(
       inputMemAddr = m.Out(m.UInt[64]),
       inputMemAddrValid = m.Out(m.Bit),
@@ -83,7 +86,7 @@ class StreamingWrapper(m.Generator2):
       if i == numFeaturePairs - 1:
         featurePairs[i].neighborOutputIn @= 0
       else:
-        featurePairs[i].neighborOutputIn @= featurePairs[i + 1].output
+        featurePairs[i].neighborOutputIn @= featurePairs[i + 1].out
 
     io.inputMemAddrValid @= (state.O == TopState.inputLengthAddr) | \
       ((state.O == TopState.mainLoop) & (inputAddrLineCount.O != inputLength.O))
@@ -127,7 +130,7 @@ class StreamingWrapper(m.Generator2):
           if io.outputMemAddrReady:
             outputState.I @= OutputState.fillingLine
         elif outputState.O == OutputState.fillingLine:
-          outputLine.I[outputWordsInLine - 1] @= featurePairs[0].output
+          outputLine.I[outputWordsInLine - 1] @= featurePairs[0].out
           gen_shift(outputLine)
           wordInLine = 0 if m.bit(outputWordsInLine == 1) else \
             outputWordCounter[:max(1, m.bitutils.clog2(outputWordsInLine))]
@@ -141,4 +144,5 @@ class StreamingWrapper(m.Generator2):
             else:
               outputState.I @= OutputState.sendingAddr
 
-m.compile("build", StreamingWrapper(0, 0, 512, 4, int(sys.argv[1]), 8), inline=True)
+if __name__ == "__main__":
+  m.compile("build", StreamingWrapper(0, 0, 512, 4, int(sys.argv[1]), 8), inline=True)
