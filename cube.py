@@ -8,10 +8,6 @@ def reg_init(t, init): return m.Register(t, init = init, reset_type = m.Reset)()
 
 def sl(b, s): return m.uint(0, s).concat(b)
 
-def gen_shift(a):
-  for i in range(len(a.I) - 1):
-    a.I[i] @= a.O[i + 1]
-
 class StreamingWrapper(m.Generator2):
   def __init__(self, inputStartAddr: int, outputStartAddr: int, busWidth: int,
                      wordWidth: int, numWordsPerGroup: int, metricWidth: int):
@@ -100,10 +96,23 @@ class StreamingWrapper(m.Generator2):
     io.outputMemBlockLast @= True
     io.finished @= state.O == TopState.finished
 
+    # hard to put this inside the inline comb
+    cond = (state.O == TopState.writeOutput) & (outputState.O == OutputState.fillingLine)
+    outputLine.I[outputWordsInLine - 1] @= \
+      m.mux([outputLine.O[outputWordsInLine - 1], featurePairs[0].out], cond)
+    for i in range(len(outputLine.I) - 1):
+      outputLine.I[i] @= m.mux([outputLine.O[i], outputLine.O[i + 1]], cond)
+
     @m.inline_combinational()
     def logic():
       io.inputMemAddr @= inputStartAddr
       io.inputMemAddrLen @= 0
+      # default values required
+      state.I @= state.O
+      inputAddrLineCount.I @= inputAddrLineCount.O
+      inputDataLineCount.I @= inputDataLineCount.O
+      outputState.I @= outputState.O
+      outputWordCounter.I @= outputWordCounter.O
       if state.O == TopState.inputLengthAddr:
         if io.inputMemAddrReady:
           state.I @= TopState.loadInputLength
@@ -130,8 +139,6 @@ class StreamingWrapper(m.Generator2):
           if io.outputMemAddrReady:
             outputState.I @= OutputState.fillingLine
         elif outputState.O == OutputState.fillingLine:
-          outputLine.I[outputWordsInLine - 1] @= featurePairs[0].out
-          gen_shift(outputLine)
           wordInLine = 0 if m.bit(outputWordsInLine == 1) else \
             outputWordCounter[:max(1, m.bitutils.clog2(outputWordsInLine))]
           if wordInLine == outputWordsInLine - 1:
