@@ -54,6 +54,8 @@ class FeaturePair(m.Generator2):
     def logic():
       if io.doShift:
         outputCounter.I @= outputCounter.O + 1 # wraps around
+      else:
+        outputCounter.I @= outputCounter.O # default required
       if io.shiftMode:
         bram.RADDR @= outputCounter.O + 1 if io.doShift else outputCounter.O
         bram.WDATA @= io.neighborOutputIn

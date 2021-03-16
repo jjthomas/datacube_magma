@@ -8,14 +8,18 @@ def test_sw(sw, input_bv, output_bv):
   t.circuit.inputMemBlockValid = False
   t.circuit.outputMemAddrReady = False
   t.circuit.outputMemBlockReady = False
+  t.circuit.inputMemAddrReady = False
+  t.advance_cycle()
 
   inputLeft = input_bv
   curInputAddr = sw.inputStartAddr
+  lengthLine = True
   while len(inputLeft) > 0:
     t.circuit.inputMemAddrReady = True
     t.wait_until_high(t.circuit.inputMemAddrValid)
     t.circuit.inputMemAddr.expect(curInputAddr)
-    curLen = min(64, len(inputLeft) // sw.busWidth) # bits left should be multiple of busWidth
+    curLen = 1 if lengthLine else \
+      min(64, len(inputLeft) // sw.busWidth) # bits left should be multiple of busWidth
     t.circuit.inputMemAddrLen.expect(curLen - 1)
     t.advance_cycle()
     t.circuit.inputMemAddrReady = False
@@ -27,6 +31,7 @@ def test_sw(sw, input_bv, output_bv):
       curInputAddr += sw.busWidth // 8
       inputLeft = inputLeft[sw.busWidth:]
     t.circuit.inputMemBlockValid = False
+    lengthLine = False
 
   outputLeft = output_bv
   curOutputAddr = sw.outputStartAddr
@@ -39,7 +44,6 @@ def test_sw(sw, input_bv, output_bv):
     t.circuit.outputMemBlockReady = True
     t.wait_until_high(t.circuit.outputMemBlockValid)
     outputBits = min(sw.busWidth, len(outputLeft))
-    t.print("output line: %x\n", t.circuit.outputMemBlock[:outputBits])
     t.expect(t.circuit.outputMemBlock[:outputBits], outputLeft[:outputBits])
     t.advance_cycle()
     t.circuit.outputMemBlockReady = False

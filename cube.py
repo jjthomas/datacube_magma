@@ -78,6 +78,7 @@ class StreamingWrapper(m.Generator2):
         featurePair.inputValid @= io.inputMemBlockValid & (state.O == TopState.mainLoop)
         featurePair.shiftMode @= state.O == TopState.writeOutput
         featurePair.doShift @= (state.O == TopState.writeOutput) & (outputState.O == OutputState.fillingLine)
+    io.inputMemBlock[max(32, 2 * numWordsPerGroup * wordWidth + metricWidth):].unused()
     for i in range(numFeaturePairs):
       if i == numFeaturePairs - 1:
         featurePairs[i].neighborOutputIn @= 0
@@ -123,10 +124,10 @@ class StreamingWrapper(m.Generator2):
       elif state.O == TopState.mainLoop:
         io.inputMemAddr @= m.zext_to(sl(inputAddrLineCount.O, m.bitutils.clog2(bytesInLine)), 64) + \
           (inputStartAddr + bytesInLine) # final term is start offset of main data stream
-        remainingAddrLines = inputLength.O - inputAddrLineCount.O
-        io.inputMemAddrLen @= 63 if remainingAddrLines > 63 else (remainingAddrLines - 1)[:8]
+        remainingAddrLen = inputLength.O - inputAddrLineCount.O - 1
+        io.inputMemAddrLen @= 63 if remainingAddrLen > 63 else remainingAddrLen[:8]
         if io.inputMemAddrReady:
-          inputAddrLineCount.I @= inputAddrLineCount.O + 64 if remainingAddrLines > 63 else inputLength.O
+          inputAddrLineCount.I @= inputAddrLineCount.O + 64 if remainingAddrLen > 63 else inputLength.O
         if io.inputMemBlockValid:
           inputDataLineCount.I @= inputDataLineCount.O + 1
           if inputDataLineCount.O == inputLength.O - 1:
@@ -141,7 +142,7 @@ class StreamingWrapper(m.Generator2):
         elif outputState.O == OutputState.fillingLine:
           wordInLine = 0 if m.bit(outputWordsInLine == 1) else \
             outputWordCounter[:max(1, m.bitutils.clog2(outputWordsInLine))]
-          if wordInLine == outputWordsInLine - 1:
+          if m.bit(wordInLine == outputWordsInLine - 1): # TODO figure out why m.bit is needed here
             outputState.I @= OutputState.sendingLine
           outputWordCounter.I @= outputWordCounter.O + 1
         else: # outputState is sendingLine
