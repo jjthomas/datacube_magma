@@ -3,7 +3,7 @@ import fault
 from cube import StreamingWrapper
 
 def test_sw(sw, input_bv, output_bv):
-  t = fault.SynchronousTester(sw, sw.CLK)
+  t = fault.PythonTester(sw, sw.CLK)
 
   t.circuit.inputMemBlockValid = False
   t.circuit.outputMemAddrReady = False
@@ -51,7 +51,6 @@ def test_sw(sw, input_bv, output_bv):
     outputLeft = outputLeft[outputBits:]
 
   t.circuit.finished.expect(True)
-  t.compile_and_run("verilator")
 
 def arrToBits(a, wordSize):
   res = ht.BitVector[0](0)
